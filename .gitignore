@@ -1,0 +1,31 @@
+# Entorno virtual
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Variables de entorno (IMPORTANTE - tiene contraseñas)
+.env
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Base de datos (cuando la agregues)
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+
+# Archivos temporales
+*.tmp
