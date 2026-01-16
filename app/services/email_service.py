@@ -1,51 +1,79 @@
 import os
+import base64
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 import aiosmtplib
-from dotenv import load_dotenv
-
-# Cargar variables del archivo .env
-load_dotenv()
+from app.config import settings
 
 class EmailService:
-    """Servicio para enviar correos electrónicos"""
-    
     def __init__(self):
-        # Leer configuración del archivo .env
-        self.smtp_host = os.getenv("SMTP_HOST")
-        self.smtp_port = int(os.getenv("SMTP_PORT"))
-        self.smtp_user = os.getenv("SMTP_USER")
-        self.smtp_password = os.getenv("SMTP_PASSWORD")
-        self.from_name = os.getenv("SMTP_FROM_NAME")
-    
-    async def enviar_correo_simple(
+        self.smtp_host = settings.SMTP_HOST
+        self.smtp_port = settings.SMTP_PORT
+        self.smtp_user = settings.SMTP_USER
+        self.smtp_password = settings.SMTP_PASSWORD
+        self.from_name = settings.SMTP_FROM_NAME
+
+    async def enviar_correo_con_adjunto(
         self,
-        destinatario: str,
+        destinatarios: list,
         asunto: str,
-        cuerpo: str
+        cuerpo: str, # Este es el texto que mandará el Back
+        archivo_base64: str = None,
+        nombre_archivo: str = "reporte.pdf"
     ) -> dict:
-        """
-        Envía un correo de texto simple
-        
-        Args:
-            destinatario: Email del destinatario
-            asunto: Asunto del correo
-            cuerpo: Contenido del correo (texto plano)
-            
-        Returns:
-            dict con status y mensaje
-        """
         try:
-            # Crear el mensaje
             mensaje = MIMEMultipart()
             mensaje["From"] = f"{self.from_name} <{self.smtp_user}>"
-            mensaje["To"] = destinatario
+            mensaje["To"] = ", ".join(destinatarios)
             mensaje["Subject"] = asunto
+
+            # --- AQUÍ CREAMOS EL DISEÑO BONITO (HTML) ---
+            # He usado el color azul de tu barra lateral (#2c3e50 / #34495e)
+            html_template = f"""
+            <html>
+            <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f4f7f6; padding: 20px;">
+                    <tr>
+                        <td align="center">
+                            <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+                                <tr style="background-color: #1e3a8a;">
+                                    <td align="center" style="padding: 20px;">
+                                        <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Iron Tigers - Sistema de Gestión</h1>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 40px; color: #333333; line-height: 1.6;">
+                                        <h2 style="color: #1e3a8a;">Notificación de Reporte</h2>
+                                        <p style="font-size: 16px;">{cuerpo}</p>
+                                        <p style="font-size: 14px; color: #666666; margin-top: 30px;">
+                                            Este es un correo automático, por favor no respondas a esta dirección.
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr style="background-color: #f8fafc; border-top: 1px solid #eeeeee;">
+                                    <td align="center" style="padding: 20px; font-size: 12px; color: #94a3b8;">
+                                        &copy; 2024 Iron Tigers | Departamento de TI
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+            """
             
-            # Agregar el cuerpo del mensaje
-            mensaje.attach(MIMEText(cuerpo, "plain"))
-            
-            # Enviar el correo
+            # Cambiamos "plain" por "html" para que Gmail entienda el diseño
+            mensaje.attach(MIMEText(html_template, "html"))
+
+            # Lógica del archivo adjunto (se queda igual)
+            if archivo_base64:
+                contenido_binario = base64.b64decode(archivo_base64)
+                adjunto = MIMEApplication(contenido_binario)
+                adjunto.add_header('Content-Disposition', 'attachment', filename=nombre_archivo)
+                mensaje.attach(adjunto)
+
             await aiosmtplib.send(
                 mensaje,
                 hostname=self.smtp_host,
@@ -54,17 +82,9 @@ class EmailService:
                 password=self.smtp_password,
                 start_tls=True
             )
-            
-            return {
-                "status": "success",
-                "mensaje": f"Correo enviado exitosamente a {destinatario}"
-            }
+            return {"status": "success", "mensaje": "Correo con diseño enviado"}
             
         except Exception as e:
-            return {
-                "status": "error",
-                "mensaje": f"Error al enviar correo: {str(e)}"
-            }
+            return {"status": "error", "mensaje": str(e)}
 
-# Crear una instancia global del servicio
 email_service = EmailService()
